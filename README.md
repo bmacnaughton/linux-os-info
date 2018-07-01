@@ -1,36 +1,52 @@
-linux-release-info
+linux-os-info
 =================
 
-Get Linux release info (distribution name, version, arch, release, etc.) from '/etc/os-release' file and from native os module. On Windows and Darwin platforms it only returns common node os module info (platform, hostname, release, and arch)
+Get OS release info for Linux releases from the `'/etc/os-release'` file and from the node `os` module. On Windows and Macs it only returns the node `os` module info (platform, hostname, release, and arch)
 
 ### Highlights
 * Lightweight without any dependencies (only native Node modules)
-* Async file reading
-
+* Synchronous, asynchronous, and promise - choose how you want to use it.
 
 
 ## Installation
 
-    npm install --save linux-release-info
+    npm install --save linux-os-info
 
 ## Usage
 
 ```
-const releaseInfo = require('linux-release-info')
+const osInfo = require('linux-os-info')
 
-releaseInfo()
-    .then(result => {
-        console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`) // Distro name (only on linux) and arch info
-        console.log(result) // all data
-    })
-    .catch(err => console.error(`Error reading OS release info: ${err}`))
+// the example presumes running some flavor of linux.
+
+// synchronous - use an options argument with {synchronous: true}
+var result = osInfo({synchronous: true})
+console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
+
+// asynchronous - pass a function as an argument
+osInfo(function (err, result) {
+  console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
+})
+
+// promise - no arguments
+osInfo()
+  .then(result => {
+    console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
+  })
+  .catch(err => console.error(`Error reading OS release info: ${err}`))
+
 ```
-Outputs:
+On my machine all three versions output:
 ```
-> You are using Ubuntu 17.10 on a x64 machine
+You are using Ubuntu 18.04 LTS on a x64 machine
 ```
+
+
 
 #### Sample outputs
+
+These example outputs are courtesy of Samuel Carreira. His (linux-release-info)[https://github.com/samuelcarreira/linux-release-info] combined with my wanting a synchronous version were the inspiration for this package.
+
 **Linux**
 ```
 { type: 'Linux',
@@ -110,7 +126,7 @@ Outputs:
   release: '16.0.0' }
 ```
 
-#### Extra tip
+#### Windows and Macs?
 If you want info about Windows or Mac releases, you can try the following modules from sindresorhus:
 https://www.npmjs.com/package/win-release
 or
@@ -119,5 +135,3 @@ https://www.npmjs.com/package/macos-release
 
 ## License
 Licensed under MIT
-
-Copyright (c) 2018 [Samuel Carreira]

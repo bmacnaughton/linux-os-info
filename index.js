@@ -1,57 +1,80 @@
-"use strict"
+'use strict'
 
 const fs = require("fs")
 const os = require("os")
 
-/** 
- * Get OS release info from '/etc/os-release' file and from native os module 
- * on Windows or Darwin it only returns common os module info
- * 
- * (note: async reading using native fs module)
- * 
- * 
- * @returns {Object} info from the current os
+/**
+ * Get OS release info from '/etc/os-release' file and from node os module. If
+ * Windows or Mac return only the node os module's info.
+ *
+ * @returns info {object} via Promise | callback | return value
  */
-module.exports = releaseInfo => {
-    return new Promise((resolve, reject) => {
+module.exports = function (opts) {
 
-        let outputData = {
-            type: os.type(),
-            platform: os.platform(),
-            hostname: os.hostname(),
-            arch: os.arch(),
-            release: os.release(),
-        }
+  let outputData = {
+    type: os.type(),
+    platform: os.platform(),
+    hostname: os.hostname(),
+    arch: os.arch(),
+    release: os.release(),
+  }
 
-        if (os.type() !== 'Linux') {
-            return resolve(outputData)
-        }
+  if (os.type() !== 'Linux') {
+    return resolve(outputData)
+  }
 
-        fs.readFile('/etc/os-release', 'binary', (err, data) => {
-            if (err) {
-                //console.error(`Error reading OS release: ${err}`)
-                return reject(err)
-            }
+  let mode = 'promise'
 
-            //console.log(data) // debug result
+  if (typeof opts === 'function') {
+    // do a callback
+    mode = 'callback'
+    return asyncRead()
+  } else if (opts && opts.synchronous) {
+    // do it synchronously
+    let data = fs.readFileSync('/etc/os-release', 'utf8')
+    addOsReleaseToOutputData(data)
+    return outputData
+  } else {
+    // return a promise just like it does now
+    return new Promise(asyncRead)
+  }
 
-            const lines = data.split('\n')
+  function asyncRead (resolve, reject) {
+    fs.readFile('/etc/os-release', 'utf8', (err, data) => {
+      if (err) {
+        mode === 'promise' ? reject(err) : opts(err)
+        return
+      }
 
-            lines.forEach(element => {
-                const linedata = element.split('=')
+      addOsReleaseToOutputData(data)
 
-                if (linedata.length === 2) {
-                    linedata[1] = linedata[1].replace(/"/g, '') // remove quotes
-                    Object.defineProperty(outputData, linedata[0].toLowerCase(), {
-                        value: linedata[1],
-                        writable: true,
-                        enumerable: true,
-                        configurable: true
-                    })
-                }
-            });
-
-            return resolve(outputData)
-        })
+      mode === 'promise' ? resolve(outputData) : opts(null, outputData)
     })
+  }
+
+  function splitOnce(string, delimiter) {
+    let index = string.indexOf(delimiter)
+    return [string.slice(0, index), string.slice(index + 1)]
+  }
+
+  function addOsReleaseToOutputData(data) {
+    const lines = data.split('\n')
+
+    lines.forEach(line => {
+      let index = line.indexOf('=')
+      // only look at lines with at least a one character key
+      if (index >= 1) {
+        // lowercase key and remove quotes on value
+        let key = line.slice(0, index).toLowerCase()
+        let value = line.slice(index + 1).replace(/"/g, '')
+
+        Object.defineProperty(outputData, key, {
+          value: value,
+          writable: true,
+          enumerable: true,
+          configurable: true
+        })
+      }
+    });
+  }
 }

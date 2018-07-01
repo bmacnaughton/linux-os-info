@@ -56,7 +56,7 @@ describe('os-release-info', function () {
   describe('OS-specific tests', function () {
     let info = osInfo({synchronous: true})
 
-    //
+    // ubuntu 18.04
     test = info.version_codename === 'bionic' ? it : it.skip
     test('should handle a quoted value for bionic beaver', function () {
       info.pretty_name.should.equal('Ubuntu 18.04 LTS')
@@ -65,7 +65,12 @@ describe('os-release-info', function () {
       info.id.should.equal('ubuntu')
     })
 
-    // add your tests here
+    // ubuntu 17.10
+    test = info.version_codename === 'artful' ? it : it.skip
+    test('should handle a quoted value for artful aardvark', function () {
+      info.pretty_name.should.equal('Ubuntu 17.10')
+    })
+
   })
 
   function compare (info, expected) {

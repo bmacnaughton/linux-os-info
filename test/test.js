@@ -11,7 +11,12 @@ let osData = {
   release: os.release(),
 }
 
-let osRelease = fs.readFileSync('/etc/os-release', 'utf8')
+let osRelease
+if (os.type() === 'Linux') {
+    osRelease = fs.readFileSync('/etc/os-release', 'utf8')
+} else {
+    osRelease = ''
+}
 let lines = osRelease.split('\n')
 
 // use different logic to determine the KV pairs

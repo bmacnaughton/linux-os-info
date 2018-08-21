@@ -19,36 +19,50 @@ module.exports = function (opts) {
     release: os.release(),
   }
 
-  if (os.type() !== 'Linux') {
-    return resolve(outputData)
-  }
-
-  let mode = 'promise'
-
   if (typeof opts === 'function') {
-    // do a callback
-    mode = 'callback'
-    return asyncRead()
+    return asyncReadPromise().then((data)=>{
+        opts(undefined, data)
+    }, (err)=>{
+        opts(err)
+    })
   } else if (opts && opts.synchronous) {
     // do it synchronously
-    let data = fs.readFileSync('/etc/os-release', 'utf8')
-    addOsReleaseToOutputData(data)
+    let data;
+    if (os.type() === 'Linux') {
+      try {
+        data = fs.readFileSync('/etc/os-release', 'utf8')
+      } catch (ex) {
+        data = fs.readFileSync('/usr/lib/os-release', 'utf8')
+      }
+      addOsReleaseToOutputData(data)
+    }
     return outputData
   } else {
     // return a promise just like it does now
-    return new Promise(asyncRead)
+    return asyncReadPromise()
   }
 
-  function asyncRead (resolve, reject) {
-    fs.readFile('/etc/os-release', 'utf8', (err, data) => {
-      if (err) {
-        mode === 'promise' ? reject(err) : opts(err)
-        return
+  function asyncReadPromise() {
+    return new Promise(function(resolve, reject) {
+      if (os.type() !== 'Linux') {
+        return resolve(outputData);
       }
 
-      addOsReleaseToOutputData(data)
-
-      mode === 'promise' ? resolve(outputData) : opts(null, outputData)
+      fs.readFile('/etc/os-release', 'utf8', (err, data) => {
+        if (err) {
+          fs.readFile('/usr/lib/os-release', 'utf8', (err2, data2) => {
+            if (err2) {
+              reject(err2)
+            } else {
+              addOsReleaseToOutputData(data2)
+              resolve(outputData)
+            }
+          })
+        } else {
+          addOsReleaseToOutputData(data)
+          resolve(outputData)
+        }
+      })
     })
   }
 

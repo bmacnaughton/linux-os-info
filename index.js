@@ -9,72 +9,149 @@ const os = require("os")
  *
  * @returns info {object} via Promise | callback | return value
  */
-module.exports = function (opts) {
-
+function linuxOsInfo (opts) {
   let outputData = {
     type: os.type(),
     platform: os.platform(),
     hostname: os.hostname(),
     arch: os.arch(),
     release: os.release(),
-  }
-
-  if (os.type() !== 'Linux') {
-    return resolve(outputData)
+    file: undefined,
   }
 
   let mode = 'promise'
+  opts = opts || {}
 
-  if (typeof opts === 'function') {
-    // do a callback
+  const list = opts.list || defaultList
+
+  if (typeof opts.mode === 'function') {
     mode = 'callback'
-    return asyncRead()
-  } else if (opts && opts.synchronous) {
-    // do it synchronously
-    let data = fs.readFileSync('/etc/os-release', 'utf8')
-    addOsReleaseToOutputData(data)
-    return outputData
+  } else if (opts.mode === 'sync') {
+    mode = 'sync'
+  }
+
+  if (os.type() !== 'Linux') {
+    if (mode === 'promise') {
+      return Promise.resolve(outputData)
+    } else if (mode === 'callback') {
+      return opts.mode(null, outputData)
+    } else {
+      return outputData
+    }
+  }
+
+  if (mode === 'sync') {
+    return synchronousRead()
   } else {
-    // return a promise just like it does now
-    return new Promise(asyncRead)
+    // return a Promise that can be ignored if caller expects a callback
+    return new Promise(asynchronousRead)
   }
 
-  function asyncRead (resolve, reject) {
-    fs.readFile('/etc/os-release', 'utf8', (err, data) => {
-      if (err) {
-        mode === 'promise' ? reject(err) : opts(err)
-        return
+  function synchronousRead () {
+    for (let i = 0; i < list.length; i++) {
+      let data
+      try {
+        data = fs.readFileSync(list[i].path, 'utf8')
+        list[i].parser(data, outputData)
+        outputData.file = list[i].path
+        return outputData
+      } catch (e) {
+        // accumulate errors?
       }
-
-      addOsReleaseToOutputData(data)
-
-      mode === 'promise' ? resolve(outputData) : opts(null, outputData)
-    })
+    }
+    outputData.file = new Error('linux-os-info - no file found')
+    return outputData
   }
 
-  function splitOnce(string, delimiter) {
-    let index = string.indexOf(delimiter)
-    return [string.slice(0, index), string.slice(index + 1)]
+
+  function asynchronousRead (resolve, reject) {
+    let i = 0
+
+    function tryRead (file) {
+      fs.readFile(file, 'utf8', (err, data) => {
+        if (err) {
+          i += 1
+          if (i >= list.length) {
+            const e = new Error('linux-os-info - no file found')
+            outputData.file = e
+            mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
+          } else {
+            tryRead(list[i].path)
+          }
+        } else {
+          list[i].parser(data, outputData)
+          outputData.file = file
+          mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
+          return
+        }
+      })
+    }
+
+    tryRead(list[i].path)
   }
 
-  function addOsReleaseToOutputData(data) {
-    const lines = data.split('\n')
+}
 
-    lines.forEach(line => {
-      let index = line.indexOf('=')
-      // only look at lines with at least a one character key
-      if (index >= 1) {
-        // lowercase key and remove quotes on value
-        let key = line.slice(0, index).toLowerCase()
-        let value = line.slice(index + 1).replace(/"/g, '')
 
-        Object.defineProperty(outputData, key, {
-          value: value,
-          writable: true,
-          enumerable: true,
-          configurable: true
-        })
-      }
-    });
-  }
+function etcOsRelease(data, outputData) {
+  addOsReleaseToOutputData(data, outputData)
+}
+
+function usrLibOsRelease(data, outputData) {
+  addOsReleaseToOutputData(data, outputData)
+}
+
+function etcAlpineRelease(data, outputData) {
+  outputData.name = 'Alpine'
+  outputData.id = 'alpine'
+  outputData.version = data
+  outputData.version_id = data
+}
+
+const defaultList = [
+  {path: '/etc/os-release-x', parser: etcOsRelease},
+  {path: '/usr/lib/os-release-x', parser: usrLibOsRelease},
+  {path: '/etc/alpine-release', parser: etcAlpineRelease}
+]
+
+function splitOnce(string, delimiter) {
+  let index = string.indexOf(delimiter)
+  return [string.slice(0, index), string.slice(index + 1)]
+}
+
+function addOsReleaseToOutputData(data, outputData) {
+  const lines = data.split('\n')
+
+  lines.forEach(line => {
+    let index = line.indexOf('=')
+    // only look at lines with at least a one character key
+    if (index >= 1) {
+      // lowercase key and remove quotes on value
+      let key = line.slice(0, index).toLowerCase()
+      let value = line.slice(index + 1).replace(/"/g, '')
+
+      Object.defineProperty(outputData, key, {
+        value: value,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      })
+    }
+  });
+}
+
+module.exports = linuxOsInfo
+
+if (require.main === module) {
+
+  console.log('testing synchronous')
+  console.log('synchronous:', linuxOsInfo({mode: 'sync'}))
+
+  console.log('testing promise')
+  linuxOsInfo()
+    .then(r => console.log('promise:', r))
+    .catch(e => console.log('promise error:', e))
+
+  console.log('testing callback')
+  linuxOsInfo({mode: function (err, data) {console.log('callback:', data)}})
 }

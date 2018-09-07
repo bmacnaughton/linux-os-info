@@ -47,6 +47,7 @@ function linuxOsInfo (opts) {
     return new Promise(asynchronousRead)
   }
 
+  // loop through the file list synchronously
   function synchronousRead () {
     for (let i = 0; i < list.length; i++) {
       let data
@@ -63,7 +64,7 @@ function linuxOsInfo (opts) {
     return outputData
   }
 
-
+  // loop through the file list on completion of async reads
   function asynchronousRead (resolve, reject) {
     let i = 0
 
@@ -92,6 +93,15 @@ function linuxOsInfo (opts) {
 
 }
 
+//
+// helper functions to parse file data
+//
+
+const defaultList = [
+  {path: '/etc/os-release', parser: etcOsRelease},
+  {path: '/usr/lib/os-release', parser: usrLibOsRelease},
+  {path: '/etc/alpine-release', parser: etcAlpineRelease}
+]
 
 function etcOsRelease(data, outputData) {
   addOsReleaseToOutputData(data, outputData)
@@ -107,12 +117,6 @@ function etcAlpineRelease(data, outputData) {
   outputData.version = data
   outputData.version_id = data
 }
-
-const defaultList = [
-  {path: '/etc/os-release-x', parser: etcOsRelease},
-  {path: '/usr/lib/os-release-x', parser: usrLibOsRelease},
-  {path: '/etc/alpine-release', parser: etcAlpineRelease}
-]
 
 function splitOnce(string, delimiter) {
   let index = string.indexOf(delimiter)

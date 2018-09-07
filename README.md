@@ -1,7 +1,7 @@
 linux-os-info
 =================
 
-Get OS release info for Linux releases from the `'/etc/os-release'` file and from the node `os` module. On Windows and Macs it only returns the node `os` module info (platform, hostname, release, and arch)
+Get OS release info from the node `os` module and, for Linux releases, from the `'/etc/os-release'`, `/usr/lib/os-release`, or `/etc/alpine-release` file. If none of those files exists it returns only the node `os` module info (platform, hostname, release, and arch)
 
 ### Highlights
 * Lightweight without any dependencies (only native Node modules)
@@ -20,13 +20,13 @@ const osInfo = require('linux-os-info')
 // the example presumes running some flavor of linux.
 
 // synchronous - use an options argument with {synchronous: true}
-var result = osInfo({synchronous: true})
+var result = osInfo({mode: 'sync'})
 console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
 
 // asynchronous - pass a function as an argument
-osInfo(function (err, result) {
+osInfo({mode: function (err, result) {
   console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
-})
+}})
 
 // promise - no arguments
 osInfo()
@@ -41,11 +41,22 @@ On my machine all three versions output:
 You are using Ubuntu 18.04 LTS on a x64 machine
 ```
 
+The API completely changed from version 1. The single, optional argument is an options object.
+
+v1: `osInfo({synchronous: true})`
+v2: `osInfo({mode: 'sync'})`
+
+v1: `osInfo(function (err, data) {...})`
+v2: `osInfo({mode: function (err, data) (...)})`
+
+v2 *NEVER* returns errors (unless there is an internal error). The data object returned now has a file property which holds the file that was read (one of those in the list above). If no file was read it holds an instance of `Error`. Because node's `os` information is always returned the file data is considered optional.
 
 
 #### Sample outputs
 
 These example outputs are courtesy of Samuel Carreira. His (linux-release-info)[https://github.com/samuelcarreira/linux-release-info] combined with my wanting a synchronous version were the inspiration for this package.
+
+v2 note: the `file` property is not shown in these examples.
 
 **Linux**
 ```

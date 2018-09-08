@@ -29,7 +29,9 @@ function linuxOsInfo (opts) {
   let mode = 'promise'
   opts = opts || {}
 
-  const list = opts.list || defaultList
+
+
+  const list = Array.isArray(opts.list) ? opts.list : defaultList
 
   if (typeof opts.mode === 'function') {
     mode = 'callback'
@@ -75,30 +77,29 @@ function linuxOsInfo (opts) {
   function asynchronousRead (resolve, reject) {
     let i = 0
 
-    function tryRead (file) {
-      fs.readFile(file, 'utf8', (err, data) => {
-        if (err) {
-          i += 1
-          if (i >= list.length) {
-            const e = new Error('linux-os-info - no file found')
-            outputData.file = e
-            mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
+    function tryRead () {
+      if (i >= list.length) {
+        const e = new Error('linux-os-info - no file found')
+        outputData.file = e
+        mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
+      } else {
+        // try to read the file.
+        let file = list[i].path
+        fs.readFile(file, 'utf8', (err, data) => {
+          if (err) {
+            i += 1
+            tryRead()
           } else {
-            tryRead(list[i].path)
+            list[i].parser(data, outputData)
+            outputData.file = file
+            mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
           }
-        } else {
-          list[i].parser(data, outputData)
-          outputData.file = file
-          mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
-          // don't queue up another read.
-          return
-        }
-      })
+        })
+      }
     }
 
-    tryRead(list[i].path)
+    tryRead()
   }
-
 }
 
 //

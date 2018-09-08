@@ -5,7 +5,7 @@ Get OS release info from the node `os` module and, for Linux releases, from the 
 
 ### Highlights
 * Lightweight without any dependencies (only native Node modules)
-* Synchronous, asynchronous, and promise - choose how you want to use it.
+* Synchronous, callback, or promise - choose how you want to use it.
 
 
 ## Installation
@@ -19,16 +19,16 @@ const osInfo = require('linux-os-info')
 
 // the example presumes running some flavor of linux.
 
-// synchronous - use an options argument with {synchronous: true}
+// synchronous - use an options argument with {mode: 'sync'}
 var result = osInfo({mode: 'sync'})
 console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
 
-// asynchronous - pass a function as an argument
+// asynchronous - pass a function as the mode
 osInfo({mode: function (err, result) {
   console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)
 }})
 
-// promise - no arguments
+// promise - no arguments or no mode specified
 osInfo()
   .then(result => {
     console.log(`You are using ${result.pretty_name} on a ${result.arch} machine`)

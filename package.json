@@ -19,6 +19,9 @@
     "/etc/os-release"
   ],
   "author": "Bruce A. MacNaughton <bmacnaughton@gmail.com>",
+  "contributors": [
+    "Samuel Carreira <samuelcarreira@outlook.com> (http://www.samuelcarreira.com)"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/bmacnaughton/linux-os-info/issues"

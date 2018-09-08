@@ -9,25 +9,49 @@ let osData = {
   hostname: os.hostname(),
   arch: os.arch(),
   release: os.release(),
+  file: undefined,
 }
 
-let osRelease = fs.readFileSync('/etc/os-release', 'utf8')
-let lines = osRelease.split('\n')
+const paths = ['/etc/os-release', '/usr/lib/os-release', '/etc/alpine-release']
 
-// use different logic to determine the KV pairs
-let osKVPairs = {}
-lines.forEach(line => {
-  let m = line.match(/(.+)=("{0,1})(.*)\2/)
-  if (m) {
-    osKVPairs[m[1].toLowerCase()] = m[3]
+let osRelease
+for (let i = 0; i < paths.length; i++) {
+  try {
+    osRelease = fs.readFileSync(paths[i], 'utf8')
+    if (osRelease) {
+      osData.file = paths[i]
+      break
+    }
+  } catch (e) {
+    console.log('could not read', paths[i])
   }
-})
-let expected = Object.assign({}, osData, osKVPairs)
+}
+let expected
+
+if (osData.file === '/etc/alpine-release') {
+  osData.name = 'Alpine'
+  osData.id = 'alpine'
+  osData.version = osRelease
+  osData.version_id = osRelease
+  expected = osData
+} else {
+  let lines = osRelease.split('\n')
+
+  // use different logic to determine the KV pairs
+  let osKVPairs = {}
+  lines.forEach(line => {
+    let m = line.match(/(.+)=("{0,1})(.*)\2/)
+    if (m) {
+      osKVPairs[m[1].toLowerCase()] = m[3]
+    }
+  })
+  expected = Object.assign({}, osData, osKVPairs)
+}
 
 //
 // run the tests
 //
-describe('os-release-info', function () {
+describe('linux-os-info', function () {
   it('should work by returning a promise', function (done) {
     let p = osInfo()
     p.should.be.instanceOf(Promise)
@@ -42,15 +66,30 @@ describe('os-release-info', function () {
   })
 
   it('should work with a callback', function (done) {
-    osInfo(function (err, info) {
+    osInfo({mode: function (err, info) {
       compare(info, expected)
       done()
-    })
+    }})
   })
 
   it('should work synchronously', function () {
-    let info = osInfo({synchronous: true})
+    let info = osInfo({mode: 'sync'})
     compare(info, expected)
+  })
+
+  it('should return os info when no release file is found', function () {
+    let info = osInfo({mode: 'sync', list: []})
+    let e = new Error('linux-os-info - no file found')
+    let expected = Object.assign({}, osData, {file: e})
+    compare(info, expected)
+
+    osInfo({mode: function (err, info) {
+      compare(info, expected)
+    }, list: []})
+
+    osInfo({list: []}).then(info => {
+      compare(info, expected)
+    })
   })
 
   describe('OS-specific tests', function () {

@@ -4,10 +4,17 @@ const fs = require("fs")
 const os = require("os")
 
 /**
- * Get OS release info from '/etc/os-release' file and from node os module. If
- * Windows or Mac return only the node os module's info.
+ * Get OS release info from the node os module and augment that with information
+ * from '/etc/os-release', '/usr/lib/os-release', or '/etc/alpine-release'. The
+ * information in that file is distribution-dependent. If not Linux return only
+ * the node os module info.
  *
  * @returns info {object} via Promise | callback | return value
+ *
+ * the file property in the info object will be filled in with one of:
+ *   - undefined, if not Linux
+ *   - the file path (above) used
+ *   - an Error instance if no file could be read
  */
 function linuxOsInfo (opts) {
   let outputData = {
@@ -83,6 +90,7 @@ function linuxOsInfo (opts) {
           list[i].parser(data, outputData)
           outputData.file = file
           mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
+          // don't queue up another read.
           return
         }
       })
@@ -94,14 +102,19 @@ function linuxOsInfo (opts) {
 }
 
 //
-// helper functions to parse file data
+// the default list of files to try to read and their parsers.
+// in theory this can be replaced, especially for testing purposes.
+// but it's not documented at this time unless one is reading this.
 //
-
 const defaultList = [
   {path: '/etc/os-release', parser: etcOsRelease},
   {path: '/usr/lib/os-release', parser: usrLibOsRelease},
   {path: '/etc/alpine-release', parser: etcAlpineRelease}
 ]
+
+//
+// helper functions to parse file data
+//
 
 function etcOsRelease(data, outputData) {
   addOsReleaseToOutputData(data, outputData)
@@ -111,16 +124,13 @@ function usrLibOsRelease(data, outputData) {
   addOsReleaseToOutputData(data, outputData)
 }
 
+// the alpine-release file only contains the version string
+// so fill in the basics based on that.
 function etcAlpineRelease(data, outputData) {
   outputData.name = 'Alpine'
   outputData.id = 'alpine'
   outputData.version = data
   outputData.version_id = data
-}
-
-function splitOnce(string, delimiter) {
-  let index = string.indexOf(delimiter)
-  return [string.slice(0, index), string.slice(index + 1)]
 }
 
 function addOsReleaseToOutputData(data, outputData) {
@@ -146,6 +156,9 @@ function addOsReleaseToOutputData(data, outputData) {
 
 module.exports = linuxOsInfo
 
+//
+// a tiny bit of testing
+//
 if (require.main === module) {
 
   console.log('testing synchronous')

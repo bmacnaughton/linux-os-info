@@ -1,7 +1,7 @@
 const osInfo = require('../index')
-const should = require('should')
 const os = require('os')
 const fs = require('fs')
+const expect = require('chai').expect;
 
 let osData = {
   type: os.type(),
@@ -35,7 +35,7 @@ if (osData.file === '/etc/alpine-release') {
   osData.version_id = osRelease
   expected = osData
 } else {
-  let lines = osRelease.split('\n')
+  let lines = osRelease ? osRelease.split('\n') : [];
 
   // use different logic to determine the KV pairs
   let osKVPairs = {}
@@ -54,7 +54,7 @@ if (osData.file === '/etc/alpine-release') {
 describe('linux-os-info', function () {
   it('should work by returning a promise', function (done) {
     let p = osInfo()
-    p.should.be.instanceOf(Promise)
+    expect(p).instanceOf(Promise);
 
     p.then(info => {
       compare(info, expected)
@@ -79,7 +79,7 @@ describe('linux-os-info', function () {
 
   it('should return os info when no release file is found', function () {
     let info = osInfo({mode: 'sync', list: []})
-    let e = new Error('linux-os-info - no file found')
+    let e = os.type() === 'Linux' ? new Error('linux-os-info - no file found') : undefined;
     let expected = Object.assign({}, osData, {file: e})
     compare(info, expected)
 
@@ -93,23 +93,30 @@ describe('linux-os-info', function () {
   })
 
   describe('OS-specific tests', function () {
-    let info = osInfo({synchronous: true})
+    let info = osInfo({mode: 'sync'})
 
     // ubuntu 18.04
     test = info.version_codename === 'bionic' ? it : it.skip
     test('should handle a quoted value for bionic beaver', function () {
-      info.pretty_name.should.equal('Ubuntu 18.04 LTS')
+      expect(info.pretty_name).equal('Ubuntu 18.04 LTS');
     })
     test('should handle an unquoted value for bionic beaver', function () {
-      info.id.should.equal('ubuntu')
+      expect(info.id).equal('ubuntu');
     })
 
     // ubuntu 17.10
     test = info.version_codename === 'artful' ? it : it.skip
     test('should handle a quoted value for artful aardvark', function () {
-      info.pretty_name.should.equal('Ubuntu 17.10')
-    })
+      expect(info.pretty_name).equal('Ubuntu 17.10');
+    });
 
+    // windows
+    test = info.type === 'Windows_NT' ? it : it.skip;
+    test('should return windows OS information', function () {
+      expect(info.platform).equal('win32');
+      expect(info.arch).equal('x64');
+      expect(info.release).match(/\d+\.\d+\.\d+/);
+    });
   })
 
   function compare (info, expected) {
@@ -117,10 +124,10 @@ describe('linux-os-info', function () {
     let eKeys = Object.keys(expected)
 
     iKeys.forEach(key => {
-      expected.should.have.property(key, info[key])
+      expect(info).property(key, expected[key]);
     })
 
-    iKeys.length.should.equal(eKeys.length)
+    expect(iKeys.length).equal(eKeys.length);
   }
 
   function test (condition) {

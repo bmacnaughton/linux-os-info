@@ -1,7 +1,5 @@
-'use strict'
-
-const fs = require("fs")
-const os = require("os")
+const fs = require('fs')
+const os = require('os')
 
 /**
  * Get OS release info from the node os module and augment that with information
@@ -17,7 +15,7 @@ const os = require("os")
  *   - an Error instance if no file could be read
  */
 function linuxOsInfo (opts) {
-  let outputData = {
+  const outputData = {
     type: os.type(),
     platform: os.platform(),
     hostname: os.hostname(),
@@ -28,8 +26,6 @@ function linuxOsInfo (opts) {
 
   let mode = 'promise'
   opts = opts || {}
-
-
 
   const list = Array.isArray(opts.list) ? opts.list : defaultList
 
@@ -84,7 +80,7 @@ function linuxOsInfo (opts) {
         mode === 'promise' ? resolve(outputData) : opts.mode(null, outputData)
       } else {
         // try to read the file.
-        let file = list[i].path
+        const file = list[i].path
         fs.readFile(file, 'utf8', (err, data) => {
           if (err) {
             i += 1
@@ -117,33 +113,33 @@ const defaultList = [
 // helper functions to parse file data
 //
 
-function etcOsRelease(data, outputData) {
+function etcOsRelease (data, outputData) {
   addOsReleaseToOutputData(data, outputData)
 }
 
-function usrLibOsRelease(data, outputData) {
+function usrLibOsRelease (data, outputData) {
   addOsReleaseToOutputData(data, outputData)
 }
 
 // the alpine-release file only contains the version string
 // so fill in the basics based on that.
-function etcAlpineRelease(data, outputData) {
+function etcAlpineRelease (data, outputData) {
   outputData.name = 'Alpine'
   outputData.id = 'alpine'
   outputData.version = data
   outputData.version_id = data
 }
 
-function addOsReleaseToOutputData(data, outputData) {
+function addOsReleaseToOutputData (data, outputData) {
   const lines = data.split('\n')
 
   lines.forEach(line => {
-    let index = line.indexOf('=')
+    const index = line.indexOf('=');
     // only look at lines with at least a one character key
     if (index >= 1) {
       // lowercase key and remove quotes on value
-      let key = line.slice(0, index).toLowerCase()
-      let value = line.slice(index + 1).replace(/"/g, '')
+      const key = line.slice(0, index).toLowerCase();
+      const value = line.slice(index + 1).replace(/"/g, '');
 
       Object.defineProperty(outputData, key, {
         value: value,
@@ -161,7 +157,7 @@ module.exports = linuxOsInfo
 // a tiny bit of testing
 //
 if (require.main === module) {
-
+  /* eslint-disable no-console */
   console.log('testing synchronous')
   console.log('synchronous:', linuxOsInfo({mode: 'sync'}))
 

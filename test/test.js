@@ -3,16 +3,16 @@ const os = require('os')
 const fs = require('fs')
 const expect = require('chai').expect;
 
-let osData = {
+const osData = {
   type: os.type(),
   platform: os.platform(),
   hostname: os.hostname(),
   arch: os.arch(),
   release: os.release(),
   file: undefined,
-}
+};
 
-const paths = ['/etc/os-release', '/usr/lib/os-release', '/etc/alpine-release']
+const paths = ['/etc/os-release', '/usr/lib/os-release', '/etc/alpine-release'];
 
 let osRelease
 for (let i = 0; i < paths.length; i++) {
@@ -23,6 +23,7 @@ for (let i = 0; i < paths.length; i++) {
       break
     }
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.log('could not read', paths[i])
   }
 }
@@ -35,12 +36,12 @@ if (osData.file === '/etc/alpine-release') {
   osData.version_id = osRelease
   expected = osData
 } else {
-  let lines = osRelease ? osRelease.split('\n') : [];
+  const lines = osRelease ? osRelease.split('\n') : [];
 
   // use different logic to determine the KV pairs
-  let osKVPairs = {}
+  const osKVPairs = {}
   lines.forEach(line => {
-    let m = line.match(/(.+)=("{0,1})(.*)\2/)
+    const m = line.match(/(.+)=("{0,1})(.*)\2/);
     if (m) {
       osKVPairs[m[1].toLowerCase()] = m[3]
     }
@@ -53,15 +54,14 @@ if (osData.file === '/etc/alpine-release') {
 //
 describe('linux-os-info', function () {
   it('should work by returning a promise', function (done) {
-    let p = osInfo()
+    const p = osInfo();
     expect(p).instanceOf(Promise);
 
     p.then(info => {
       compare(info, expected)
       done()
     }).catch(e => {
-      throw e
-      done()
+      done(e);
     })
   })
 
@@ -73,14 +73,14 @@ describe('linux-os-info', function () {
   })
 
   it('should work synchronously', function () {
-    let info = osInfo({mode: 'sync'})
+    const info = osInfo({mode: 'sync'});
     compare(info, expected)
   })
 
   it('should return os info when no release file is found', function () {
-    let info = osInfo({mode: 'sync', list: []})
-    let e = os.type() === 'Linux' ? new Error('linux-os-info - no file found') : undefined;
-    let expected = Object.assign({}, osData, {file: e})
+    const info = osInfo({mode: 'sync', list: []});
+    const e = os.type() === 'Linux' ? new Error('linux-os-info - no file found') : undefined;
+    const expected = Object.assign({}, osData, {file: e});
     compare(info, expected)
 
     osInfo({mode: function (err, info) {
@@ -93,24 +93,27 @@ describe('linux-os-info', function () {
   })
 
   describe('OS-specific tests', function () {
-    let info = osInfo({mode: 'sync'})
+    const info = osInfo({mode: 'sync'});
 
     // ubuntu 18.04
+    // eslint-disable-next-line no-func-assign
     test = info.version_codename === 'bionic' ? it : it.skip
     test('should handle a quoted value for bionic beaver', function () {
-      expect(info.pretty_name).equal('Ubuntu 18.04 LTS');
+      expect(info.pretty_name).match(/Ubuntu 18.04(\.[0-9]+)? LTS/);
     })
     test('should handle an unquoted value for bionic beaver', function () {
       expect(info.id).equal('ubuntu');
     })
 
     // ubuntu 17.10
+    // eslint-disable-next-line no-func-assign
     test = info.version_codename === 'artful' ? it : it.skip
     test('should handle a quoted value for artful aardvark', function () {
       expect(info.pretty_name).equal('Ubuntu 17.10');
     });
 
     // windows
+    // eslint-disable-next-line no-func-assign
     test = info.type === 'Windows_NT' ? it : it.skip;
     test('should return windows OS information', function () {
       expect(info.platform).equal('win32');
@@ -120,11 +123,15 @@ describe('linux-os-info', function () {
   })
 
   function compare (info, expected) {
-    let iKeys = Object.keys(info)
-    let eKeys = Object.keys(expected)
+    const iKeys = Object.keys(info);
+    const eKeys = Object.keys(expected);
 
     iKeys.forEach(key => {
-      expect(info).property(key, expected[key]);
+      if (info[key] instanceof Error && expected[key] instanceof Error) {
+        expect(info[key]).property('message', expected[key].message);
+      } else {
+        expect(info).property(key, expected[key]);
+      }
     })
 
     expect(iKeys.length).equal(eKeys.length);
